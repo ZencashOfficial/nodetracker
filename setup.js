@@ -1,11 +1,12 @@
+const { LocalStorage } = require('node-localstorage');
 const jsonfile = require('jsonfile');
 const promptly = require('promptly');
 const http = require('https');
-const { LocalStorage } = require('node-localstorage');
+const init = require('./init');
+const Zen = require('./zencfg');
+
 
 const localStorage = new LocalStorage('./config');
-const Zen = require('./zencfg');
-const init = require('./init');
 
 const file = './config/config.json';
 const newcfg = {};
@@ -316,4 +317,3 @@ if (zencfg.testnet) {
       });
   });
 }
-// });

@@ -1,22 +1,26 @@
 const fs = require('fs');
 const { LocalStorage } = require('node-localstorage');
 const jsonfile = require('jsonfile');
-const io = require('socket.io-client');
 const os = require('os');
-const SNode = require('./SNodeTracker').auto();
-const pkg = require('./package.json');
+const io = require('socket.io-client');
+const SNodeTracker = require('./SNodeTracker');
+const pkg = require('./package');
 const init = require('./init');
-const configuration = require('./config/config');
+const applyIPv6DnsWorkaround = require('./ipv6-dns-workaround');
 
-const file = './config/config.json';
+const SNode = SNodeTracker.auto();
+
+const configJsonFile = './config/config.json';
 
 const local = new LocalStorage('./config/local');
+
 // check if setup was run
-if (!configuration) {
+if (!fs.existsSync(configJsonFile)) {
   console.log('Please run setup: node setup');
   process.exit();
 }
 
+const configuration = JSON.parse(fs.readFileSync(configJsonFile, 'utf8'));
 const nodetype = configuration.active;
 const config = configuration[nodetype];
 
@@ -25,14 +29,11 @@ let checkInsMissed = 0;
 
 if (config.ipv === '6') {
   console.log('You setup ipv6 connectivity. We need to apply a workaround for dns resolution.');
-  require('./ipv6-dns-workaround');
+  applyIPv6DnsWorkaround();
 }
 
 const logtime = () => `${(new Date()).toISOString().replace(/T/, ' ').replace(/\..+/, '')} UTC --`;
-const isEmpty = (obj) => {
-  if (Object.entries(obj).length > 0) return false;
-  return true;
-};
+const isEmpty = obj => Object.entries(obj).length <= 0;
 
 const saveConfig = (key, value) => {
   config[key] = value;
@@ -41,8 +42,8 @@ const saveConfig = (key, value) => {
     console.log(logtime(), `Could not save ${key}=${value}, configuration is empty.`);
     return;
   }
-  fs.copyFile(file, `${file}.BACK`, () => {
-    jsonfile.writeFile(file, configuration, { spaces: 1 }, (err) => {
+  fs.copyFile(configJsonFile, `${configJsonFile}.BACK`, () => {
+    jsonfile.writeFile(configJsonFile, configuration, { spaces: 1 }, (err) => {
       if (err) {
         console.error(err);
         console.log(logtime(), `Could not save ${key}=${value}`, err);
@@ -129,18 +130,16 @@ if (cat) {
 let initTimer;
 let returningHome = false;
 
-// prep connection options
-const socketOptions = {};
+// prep default connection options
+const socketOptions = {
+  reconnectionDelay: 30000,
+  reconnectionDelayMax: 54000,
+  randomizationFactor: 0.8,
+};
 socketOptions.transports = ['websocket', 'polling'];
 const savedOpts = local.getItem('socketoptions');
 if (savedOpts) {
-  const opts = JSON.parse(savedOpts);
-  Object.assign(socketOptions, opts);
-} else {
-  // defaults
-  socketOptions.reconnectionDelay = 30000;
-  socketOptions.reconnectionDelayMax = 54000;
-  socketOptions.randomizationFactor = 0.8;
+  Object.assign(socketOptions, JSON.parse(savedOpts));
 }
 let socket = io(protocol + curServer + domain, socketOptions);
 
@@ -219,6 +218,7 @@ const switchServer = (server) => {
   socket.close();
   ident.con.cur = curServer;
   socket = io(protocol + curServer + domain, socketOptions);
+  /* eslint-disable-next-line no-use-before-define */
   setSocketEvents();
   SNode.socket = socket;
 };
@@ -237,6 +237,7 @@ const changeHome = (server) => {
   ident.con.cur = curServer;
 
   socket = io(protocol + curServer + domain, socketOptions);
+  /* eslint-disable-next-line no-use-before-define */
   setSocketEvents();
   SNode.socket = socket;
   returningHome = false;
@@ -246,6 +247,7 @@ const resetSocket = (msg) => {
   console.log(logtime(), `Reset connection  ${msg || ''}`);
   socket.close();
   socket = io(protocol + curServer + domain, socketOptions);
+  /* eslint-disable-next-line no-use-before-define */
   setSocketEvents();
   SNode.socket = socket;
 };
@@ -354,6 +356,7 @@ const setSocketEvents = () => {
         break;
 
       case 'updateServers':
+        /* eslint-disable-next-line prefer-destructuring */
         servers = data.servers;
         curIdx = servers.indexOf(curServer);
         saveConfig('servers', servers);

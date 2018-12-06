@@ -4,12 +4,12 @@
   "description": "horizen secure and super node tracking application",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ZencashOfficial/secnodetracker"
+    "url": "https://github.com/ZencashOfficial/nodetracker"
   },
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "setup": "node setup.js"
+    "setup": "node setup.js",
+    "start": "node app.js"
   },
   "author": "Allan Dumaine for Zen Blockchain Foundation",
   "license": "MIT",
@@ -24,5 +24,8 @@
     "eslint": "^4.19.1",
     "eslint-config-airbnb-base": "^13.0.0",
     "eslint-plugin-import": "^2.12.0"
+  },
+  "engines": {
+    "node": ">=10.0.0"
   }
 }
